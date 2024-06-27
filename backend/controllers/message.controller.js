@@ -1,5 +1,6 @@
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
+import { getReceiverSocketId, io } from "../socket/socket.js";
 
 export const sendMessage = async (req, res) => {
     // console.log("Message Sent", req.params.id);   // here the 'id' field is coming from api url link ":id" portion
@@ -31,13 +32,23 @@ export const sendMessage = async (req, res) => {
             conversation.messages.push(newMessage._id);
         }
 
-        // SOCKET IO functionality will come here
 
         // await conversation.save();
         // await newMessage.save();
 
         // The above 2 functions will execute one by one but we can perform them parallely using a promise
         await Promise.all([conversation.save(), newMessage.save()]);
+
+        // SOCKET IO functionality will come here
+        // Now since message is sent to DB, now we send them to other users
+        const receiverSocketId = getReceiverSocketId(receiverId);
+        if(receiverSocketId) {
+            // io.to(<socket_id>).emit() is used to send events to a specific client
+            io.to(receiverSocketId).emit("newMessage", newMessage);
+        }
+
+
+        
 
         res.status(201).json(newMessage);
 
